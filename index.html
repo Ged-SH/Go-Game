@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Go - Local 2 Player</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2b2b2b">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #2b2b2b;
+    color: #eee;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 8px;
+    user-select: none;
+  }
+  h1 { font-size: 1.2rem; margin: 0 0 8px; }
+  #status { margin-bottom: 10px; font-size: 1rem; text-align: center; min-height: 1.4em; }
+  #scoreboard {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 12px;
+    font-size: 0.95rem;
+  }
+  .score-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: #3a3a3a;
+  }
+  .score-chip.active { outline: 2px solid #6cf; }
+  .dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
+  .dot.black { background: #111; border: 1px solid #666; }
+  .dot.white { background: #f5f5f5; border: 1px solid #666; }
+  canvas {
+    background: #dfb26a;
+    border-radius: 4px;
+    touch-action: none;
+    max-width: 100%;
+    height: auto;
+  }
+  #controls {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+  }
+  button {
+    padding: 10px 18px;
+    font-size: 0.95rem;
+    border: none;
+    border-radius: 8px;
+    background: #4a4a4a;
+    color: #eee;
+    cursor: pointer;
+  }
+  button:active { background: #5a5a5a; }
+  #illegal-msg {
+    color: #ff8080;
+    font-size: 0.85rem;
+    min-height: 1.2em;
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Go — Local 2 Player (9×9)</h1>
+
+<div id="scoreboard">
+  <div class="score-chip" id="chip-black"><span class="dot black"></span><span>Black: <span id="score-black">0</span></span></div>
+  <div class="score-chip" id="chip-white"><span class="dot white"></span><span>White: <span id="score-white">0</span></span></div>
+</div>
+
+<div id="status">Black to move</div>
+
+<canvas id="board"></canvas>
+
+<div id="illegal-msg"></div>
+
+<div id="controls">
+  <button id="pass-btn">Pass</button>
+  <button id="reset-btn">New Game</button>
+</div>
+
+<script>
+(function () {
+  const SIZE = 9;              // board dimension (intersections per side)
+  const CELL = 42;             // px between intersections
+  const MARGIN = 28;           // px padding around the grid
+  const STONE_R = 18;          // stone radius in px
+
+  const canvasSize = MARGIN * 2 + CELL * (SIZE - 1);
+
+  const canvas = document.getElementById('board');
+  canvas.width = canvasSize;
+  canvas.height = canvasSize;
+  const ctx = canvas.getContext('2d');
+
+  const EMPTY = 0, BLACK = 1, WHITE = 2;
+
+  let board, current, captures, passCount, gameOver;
+
+  function newGame() {
+    board = Array.from({ length: SIZE }, () => new Array(SIZE).fill(EMPTY));
+    current = BLACK;
+    captures = { [BLACK]: 0, [WHITE]: 0 };
+    passCount = 0;
+    gameOver = false;
+    setMessage('');
+    updateStatus();
+    updateScoreboard();
+    draw();
+  }
+
+  function updateStatus() {
+    const status = document.getElementById('status');
+    if (gameOver) {
+      status.textContent = 'Game over — both players passed.';
+    } else {
+      status.textContent = (current === BLACK ? 'Black' : 'White') + ' to move';
+    }
+    document.getElementById('chip-black').classList.toggle('active', current === BLACK && !gameOver);
+    document.getElementById('chip-white').classList.toggle('active', current === WHITE && !gameOver);
+  }
+
+  function updateScoreboard() {
+    document.getElementById('score-black').textContent = captures[BLACK];
+    document.getElementById('score-white').textContent = captures[WHITE];
+  }
+
+  function setMessage(msg) {
+    document.getElementById('illegal-msg').textContent = msg;
+  }
+
+  // --- coordinate helpers ---
+  function inBounds(x, y) {
+    return x >= 0 && x < SIZE && y >= 0 && y < SIZE;
+  }
+
+  function neighbors(x, y) {
+    return [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]].filter(([nx, ny]) => inBounds(nx, ny));
+  }
+
+  // Flood-fill to find the full connected group sharing a point's color,
+  // and count that group's liberties (empty adjacent points).
+  function getGroupAndLiberties(x, y, b) {
+    const color = b[y][x];
+    const group = [];
+    const liberties = new Set();
+    const seen = new Set();
+    const stack = [[x, y]];
+    seen.add(x + ',' + y);
+
+    while (stack.length) {
+      const [cx, cy] = stack.pop();
+      group.push([cx, cy]);
+      for (const [nx, ny] of neighbors(cx, cy)) {
+        const key = nx + ',' + ny;
+        const val = b[ny][nx];
+        if (val === EMPTY) {
+          liberties.add(key);
+        } else if (val === color && !seen.has(key)) {
+          seen.add(key);
+          stack.push([nx, ny]);
+        }
+      }
+    }
+    return { group, liberties };
+  }
+
+  function opponent(color) {
+    return color === BLACK ? WHITE : BLACK;
+  }
+
+  // Attempts to place a stone. Returns true if the move was legal and applied.
+  function tryPlace(x, y) {
+    if (gameOver) return false;
+    if (board[y][x] !== EMPTY) {
+      setMessage('That point is occupied.');
+      return false;
+    }
+
+    // Work on a scratch copy so we can back out of illegal (suicide) moves.
+    const scratch = board.map(row => row.slice());
+    scratch[y][x] = current;
+
+    // 1. Resolve captures: check each *opposing* neighboring group first.
+    let capturedAny = false;
+    const opp = opponent(current);
+    for (const [nx, ny] of neighbors(x, y)) {
+      if (scratch[ny][nx] === opp) {
+        const { group, liberties } = getGroupAndLiberties(nx, ny, scratch);
+        if (liberties.size === 0) {
+          for (const [gx, gy] of group) scratch[gy][gx] = EMPTY;
+          captures[current] += group.length;
+          capturedAny = true;
+        }
+      }
+    }
+
+    // 2. Suicide check: only illegal if we captured nothing AND our own
+    //    group has no liberties left.
+    const { liberties: ownLiberties } = getGroupAndLiberties(x, y, scratch);
+    if (ownLiberties.size === 0 && !capturedAny) {
+      setMessage('Illegal move: that would be suicide.');
+      if (capturedAny) { /* unreachable, kept for clarity */ }
+      // revert the capture bookkeeping we may have started (none happened here)
+      return false;
+    }
+
+    // Move is legal — commit the scratch board.
+    board = scratch;
+    passCount = 0;
+    setMessage('');
+    current = opp;
+    updateStatus();
+    updateScoreboard();
+    draw();
+    return true;
+  }
+
+  function handlePass() {
+    if (gameOver) return;
+    passCount += 1;
+    setMessage('');
+    if (passCount >= 2) {
+      gameOver = true;
+      updateStatus();
+      return;
+    }
+    current = opponent(current);
+    updateStatus();
+  }
+
+  // --- rendering ---
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#dfb26a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = '#3a2a15';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < SIZE; i++) {
+      const pos = MARGIN + i * CELL;
+      ctx.beginPath();
+      ctx.moveTo(MARGIN, pos);
+      ctx.lineTo(MARGIN + CELL * (SIZE - 1), pos);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(pos, MARGIN);
+      ctx.lineTo(pos, MARGIN + CELL * (SIZE - 1));
+      ctx.stroke();
+    }
+
+    // star points for a 9x9 board
+    const starIdx = [2, 4, 6];
+    ctx.fillStyle = '#3a2a15';
+    for (const sx of starIdx) {
+      for (const sy of starIdx) {
+        ctx.beginPath();
+        ctx.arc(MARGIN + sx * CELL, MARGIN + sy * CELL, 3, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    for (let y = 0; y < SIZE; y++) {
+      for (let x = 0; x < SIZE; x++) {
+        const val = board[y][x];
+        if (val === EMPTY) continue;
+        const px = MARGIN + x * CELL;
+        const py = MARGIN + y * CELL;
+        ctx.beginPath();
+        ctx.arc(px, py, STONE_R, 0, Math.PI * 2);
+        ctx.fillStyle = val === BLACK ? '#111' : '#f5f5f5';
+        ctx.fill();
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    }
+  }
+
+  function pixelToBoard(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    const scale = canvas.width / rect.width;
+    const px = (clientX - rect.left) * scale;
+    const py = (clientY - rect.top) * scale;
+    const x = Math.round((px - MARGIN) / CELL);
+    const y = Math.round((py - MARGIN) / CELL);
+    return { x, y };
+  }
+
+  canvas.addEventListener('click', (e) => {
+    const { x, y } = pixelToBoard(e.clientX, e.clientY);
+    if (inBounds(x, y)) tryPlace(x, y);
+  });
+
+  canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const t = e.touches[0];
+    const { x, y } = pixelToBoard(t.clientX, t.clientY);
+    if (inBounds(x, y)) tryPlace(x, y);
+  }, { passive: false });
+
+  document.getElementById('pass-btn').addEventListener('click', handlePass);
+  document.getElementById('reset-btn').addEventListener('click', newGame);
+
+  newGame();
+})();
+
+// Registering the service worker is what makes the browser treat this
+// as an installable app rather than just a regular page.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js');
+  });
+}
+</script>
+
+</body>
+</html>
