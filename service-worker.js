@@ -1,14 +1,32 @@
 // Bump this version string whenever you change any cached file —
 // it's what tells old installs to fetch fresh copies instead of
 // serving stale ones forever from cache.
-const CACHE_NAME = 'go-app-cache-v1';
+const CACHE_NAME = 'go-app-cache-v7';
 
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './images/intro-background.png',
+  './cards/CyberPunk.png',
+  './cards/Necromancer.png',
+  './cards/Gardner.png',
+  './cards/Spy.png',
+  './cards/Astrologist.png',
+  './cards/Student.png',
+  './cards/deathknight.png',
+  './characters/cyberpunk.js',
+  './characters/necromancer.js',
+  './characters/gardner.js',
+  './characters/spy.js',
+  './characters/astrologist.js',
+  './characters/deathknight.js',
+  './characters/template.js',
+  './bot.js',
+  './puzzles/puzzle1.js',
+  './media/jazz-lounge.mp3'
 ];
 
 // On install: download and cache every file the app needs to run,

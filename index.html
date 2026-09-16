@@ -7,12 +7,15 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2b2b2b">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   body {
     margin: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    background: #2b2b2b;
+    background: #0a0a14 url('images/intro-background.png') center center / cover no-repeat;
     color: #eee;
     display: flex;
     flex-direction: column;
@@ -24,19 +27,44 @@
   #status { margin-bottom: 10px; font-size: 1rem; text-align: center; min-height: 1.4em; }
   #scoreboard {
     display: flex;
-    gap: 24px;
+    gap: 20px;
     margin-bottom: 12px;
     font-size: 0.95rem;
   }
   .score-chip {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 6px;
-    padding: 4px 10px;
-    border-radius: 8px;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 12px;
     background: #3a3a3a;
+    width: 140px;
   }
   .score-chip.active { outline: 2px solid #6cf; }
+  #ability-btn {
+    background: #7a4a1a;
+  }
+  #ability-btn.active-mode {
+    background: #b85c1a;
+  }
+  .player-card {
+    width: 120px;
+    height: 168px;
+    border-radius: 8px;
+    object-fit: cover;
+    object-position: top;
+    border: 1px solid #666;
+  }
+  .card-name {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.55rem;
+  line-height: 1.4;
+  letter-spacing: 0.5px;
+  color: #ffcc33;
+  text-shadow: 1px 1px 0 #000;
+  text-align: center;
+}
   .dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; }
   .dot.black { background: #111; border: 1px solid #666; }
   .dot.white { background: #f5f5f5; border: 1px solid #666; }
@@ -68,15 +96,426 @@
     min-height: 1.2em;
     margin-top: 6px;
   }
+
+  /* --- intro / splash screen (first thing a player sees) --- */
+  #intro-screen {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    text-align: center;
+    padding: 24px;
+    cursor: pointer;
+    background: #0a0a14 url('images/intro-background.png') center center / cover no-repeat;
+  }
+  #intro-title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 3rem;
+    color: #ffcc33;
+    text-shadow: 4px 4px 0 #b8272c, -2px -2px 0 #000;
+    letter-spacing: 4px;
+    margin: 0;
+    animation: intro-pulse 2s ease-in-out infinite;
+  }
+  #intro-subtitle {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.85rem;
+    color: #fff;
+    text-shadow: 2px 2px 0 #000;
+    animation: intro-blink 1.4s steps(2, start) infinite;
+  }
+  @keyframes intro-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+  }
+  @keyframes intro-blink {
+    50% { opacity: 0.25; }
+  }
+
+  /* --- setup / character-select overlay --- */
+  #setup-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: #0a0a14 url('images/intro-background.png') center center / cover no-repeat;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    overflow-y: auto;
+  }
+  .setup-panel { width: 100%; max-width: 420px; text-align: center; }
+  .setup-panel h2 {
+    font-size: 1.3rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-style: italic;
+    color: #ffcc33;
+    text-shadow: 2px 2px 0 #b8272c;
+    margin: 0 0 18px;
+  }
+  .size-options { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .size-btn {
+    padding: 16px 20px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    background: linear-gradient(180deg, #b8272c, #7a1519);
+    border: 2px solid #ffcc33;
+    border-radius: 8px;
+    color: #fff;
+  }
+  .size-btn:active { transform: scale(0.96); }
+  .pick-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .pick-item {
+    cursor: pointer;
+    border: 3px solid #555;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #111;
+    transition: border-color .15s, transform .1s;
+  }
+  .pick-item img { width: 100%; height: 110px; object-fit: cover; object-position: top; display: block; }
+  .pick-item span {
+    display: block;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.5rem;
+    line-height: 1.5;
+    letter-spacing: 0.5px;
+    padding: 6px 2px;
+    background: #222;
+    color: #ffcc33;
+    text-shadow: 1px 1px 0 #000;
+  }
+  .pick-item:active { border-color: #ffcc33; transform: scale(0.97); }
+  .pick-item:hover { border-color: #ffcc33; }
+  #pick-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 25vh;
+    margin-bottom: 14px;
+    gap: 8px;
+    background: rgba(10, 10, 20, 0.75);
+    border-radius: 10px;
+    padding: 14px;
+  }
+  #preview-placeholder {
+    color: #999;
+    font-size: 0.85rem;
+    font-style: italic;
+  }
+  #preview-img {
+    max-height: 25vh;
+    max-width: 100%;
+    width: auto;
+    object-fit: contain;
+    border: 3px solid #ffcc33;
+    border-radius: 8px;
+    box-shadow: 0 0 18px rgba(255, 204, 51, 0.55);
+  }
+  #preview-name {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.5px;
+    color: #ffcc33;
+    text-shadow: 1px 1px 0 #000;
+    margin: 0;
+  }
+  #preview-desc {
+    font-size: 0.85rem;
+    color: #ddd;
+    max-width: 320px;
+  }
+  .vs-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 10px 0 20px; }
+  .vs-card { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .vs-card img {
+    width: 120px;
+    height: 168px;
+    object-fit: cover;
+    object-position: top;
+    border: 3px solid #ffcc33;
+    border-radius: 8px;
+    box-shadow: 0 0 18px rgba(255, 204, 51, 0.55);
+  }
+  .vs-name {
+    font-family: 'Press Start 2P', monospace;
+    letter-spacing: 0.5px;
+    font-size: 0.65rem;
+    line-height: 1.5;
+    color: #ffcc33;
+    text-shadow: 1px 1px 0 #000;
+  }
+  .vs-text {
+    font-size: 2.4rem;
+    font-weight: 900;
+    font-style: italic;
+    color: #ffcc33;
+    text-shadow: 3px 3px 0 #b8272c, -1px -1px 0 #000;
+    transform: skewX(-10deg);
+    animation: vs-pop 0.35s ease-out;
+  }
+  @keyframes vs-pop {
+    from { transform: scale(0.4) skewX(-10deg); opacity: 0; }
+    to { transform: scale(1) skewX(-10deg); opacity: 1; }
+  }
+  #vs-start-btn {
+    padding: 14px 34px;
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    background: linear-gradient(180deg, #ffcc33, #b8272c);
+    color: #1a1a2e;
+    border: none;
+    border-radius: 8px;
+  }
+  .setup-back {
+    background: none;
+    border: none;
+    color: #ccc;
+    font-size: 0.8rem;
+    margin-top: 14px;
+    text-decoration: underline;
+    padding: 6px;
+  }
+  #puzzle-bar {
+    text-align: center;
+    margin-bottom: 10px;
+  }
+  #puzzle-bar h2 {
+    font-size: 1.1rem;
+    margin: 0 0 4px;
+  }
+  #puzzle-bar p {
+    font-size: 0.85rem;
+    color: #ccc;
+    margin: 0 0 8px;
+  }
+  #puzzle-character-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+    color: #ffcc33;
+    font-weight: 600;
+  }
+  #puzzle-character-info img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: top;
+    border: 1px solid #ffcc33;
+  }
+  .puzzle-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 50vh;
+    overflow-y: auto;
+    margin-bottom: 6px;
+  }
+  .puzzle-item {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 2px solid #555;
+    border-radius: 8px;
+    background: #111;
+    padding: 10px 14px;
+    text-align: left;
+    transition: border-color .15s;
+  }
+  .puzzle-item:hover, .puzzle-item:active { border-color: #ffcc33; }
+  .puzzle-item-title { font-weight: 700; font-size: 0.95rem; }
+  .puzzle-item-sub { font-size: 0.75rem; color: #aaa; margin-top: 2px; }
+  .puzzle-item img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    object-position: top;
+    border: 1px solid #ffcc33;
+    flex-shrink: 0;
+  }
+  #puzzle-result-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1050;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #1a1a2e, #16050f 55%, #2b0a0a);
+    padding: 24px 16px;
+    text-align: center;
+  }
+  #puzzle-result-heading {
+    font-size: 1.6rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    font-style: italic;
+    color: #ffcc33;
+    text-shadow: 2px 2px 0 #b8272c;
+    margin: 0 0 10px;
+  }
+  #puzzle-result-detail {
+    color: #ddd;
+    margin-bottom: 18px;
+  }
+  /* --- background video layer --- */
+  #bg-video {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -1;
+    pointer-events: none;
+  }
+  #sound-toggle-btn {
+    position: fixed;
+    bottom: 14px;
+    right: 14px;
+    z-index: 1300;
+    padding: 8px 14px;
+    font-size: 0.8rem;
+    border-radius: 20px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    border: 1px solid #ffcc33;
+  }
 </style>
 </head>
 <body>
 
-<h1>Go — Local 2 Player (9×9)</h1>
+<!-- Background video: currently no file — drop one in as media/background.mp4
+     later, or change the <source src> below, and it'll start showing.
+     Muted regardless, since it has no audio of its own here. -->
+<video id="bg-video" autoplay loop muted playsinline>
+  <source src="media/background.mp4" type="video/mp4">
+</video>
+
+<!-- Background music: drop jazz-lounge.mp3 in a media/ folder next to
+     index.html (same level as characters/, cards/, etc.) and this will
+     find it. No "autoplay" here on purpose — browsers block audio
+     autoplay entirely; it only starts once the button below is tapped,
+     which counts as a real user gesture and is always allowed. -->
+<audio id="bg-music" loop>
+  <source src="media/jazz-lounge.mp3" type="audio/mpeg">
+</audio>
+<button id="sound-toggle-btn">🔇 Tap for sound</button>
+<script>
+(function () {
+  const video = document.getElementById('bg-video');
+  const music = document.getElementById('bg-music');
+  const btn = document.getElementById('sound-toggle-btn');
+  function updateBtn() {
+    btn.textContent = music.paused ? '🔇 Tap for sound' : '🔊 Mute';
+  }
+  btn.addEventListener('click', () => {
+    if (music.paused) {
+      music.play().catch(() => {});
+      video.muted = false;
+      video.play().catch(() => {});
+    } else {
+      music.pause();
+      video.muted = true;
+    }
+    updateBtn();
+  });
+})();
+</script>
+
+<div id="intro-screen">
+  <h1 id="intro-title">GO</h1>
+  <p id="intro-subtitle">Click anywhere to begin</p>
+</div>
+
+<div id="setup-overlay">
+  <div id="step-mode" class="setup-panel">
+    <h2>Choose Game Mode</h2>
+    <div class="size-options">
+      <button class="size-btn" data-mode="local">2 Player Local</button>
+      <button class="size-btn" data-mode="bot">Practice vs Bot</button>
+      <button class="size-btn" data-mode="puzzle">Puzzle</button>
+    </div>
+  </div>
+
+  <div id="step-puzzle-select" class="setup-panel" style="display:none;">
+    <h2>Choose a Puzzle</h2>
+    <div id="puzzle-list" class="puzzle-list"></div>
+    <button class="setup-back" id="puzzle-select-back-btn">Back</button>
+  </div>
+
+  <div id="step-size" class="setup-panel" style="display:none;">
+    <h2>Select Board Size</h2>
+    <div class="size-options">
+      <button class="size-btn" data-size="9">9×9</button>
+      <button class="size-btn" data-size="13">13×13</button>
+      <button class="size-btn" data-size="19">19×19</button>
+    </div>
+    <button class="setup-back" id="size-back-btn">Back</button>
+  </div>
+
+  <div id="step-pick" class="setup-panel" style="display:none;">
+    <h2 id="pick-title">Black: Choose Your Fighter</h2>
+    <div id="pick-preview">
+      <div id="preview-placeholder">Hover a fighter to preview</div>
+      <img id="preview-img" alt="" style="display:none;">
+      <p id="preview-name" style="display:none;"></p>
+      <p id="preview-desc"></p>
+    </div>
+    <div id="pick-grid" class="pick-grid"></div>
+    <button class="setup-back" id="pick-back-btn">Back</button>
+  </div>
+
+  <div id="step-vs" class="setup-panel" style="display:none;">
+    <div class="vs-row">
+      <div class="vs-card">
+        <img id="vs-black-img" alt="Black fighter">
+        <span class="vs-name" id="vs-black-name"></span>
+      </div>
+      <div class="vs-text">VS</div>
+      <div class="vs-card">
+        <img id="vs-white-img" alt="White fighter">
+        <span class="vs-name" id="vs-white-name"></span>
+      </div>
+    </div>
+    <button id="vs-start-btn">Fight!</button>
+    <div><button class="setup-back" id="vs-back-btn">Back</button></div>
+  </div>
+</div>
+
+
+<h1 id="app-title">Go — Local 2 Player</h1>
+
+<div id="puzzle-bar" style="display:none;">
+  <h2 id="puzzle-title-text">Capture the Stone</h2>
+  <div id="puzzle-character-info" style="display:none;">
+    <img id="puzzle-character-img" alt="">
+    <span id="puzzle-character-name"></span>
+  </div>
+  <p id="puzzle-instructions">White to play. Place a stone to capture the black piece.</p>
+  <button class="setup-back" id="puzzle-quit-btn">Quit to Menu</button>
+</div>
 
 <div id="scoreboard">
-  <div class="score-chip" id="chip-black"><span class="dot black"></span><span>Black: <span id="score-black">0</span></span></div>
-  <div class="score-chip" id="chip-white"><span class="dot white"></span><span>White: <span id="score-white">0</span></span></div>
+  <div class="score-chip" id="chip-black"><img class="player-card" src="cards/CyberPunk.png" alt="Black player card"><span class="card-name" id="name-black"></span><span class="dot black"></span><span>Black: <span id="score-black">0</span></span></div>
+  <div class="score-chip" id="chip-white"><img class="player-card" src="cards/Necromancer.png" alt="White player card"><span class="card-name" id="name-white"></span><span class="dot white"></span><span>White: <span id="score-white">0</span></span></div>
 </div>
 
 <div id="status">Black to move</div>
@@ -88,25 +527,182 @@
 <div id="controls">
   <button id="pass-btn">Pass</button>
   <button id="reset-btn">New Game</button>
+  <button id="ability-btn" style="display:none;">Use Ability: Free Capture</button>
+</div>
+
+<div id="puzzle-result-overlay">
+  <h2 id="puzzle-result-heading">Success!</h2>
+  <p id="puzzle-result-detail"></p>
+  <div class="size-options">
+    <button class="size-btn" id="puzzle-result-primary-btn">Try Again</button>
+    <button class="size-btn" id="puzzle-result-quit-btn">Quit to Menu</button>
+  </div>
 </div>
 
 <script>
-(function () {
-  const SIZE = 9;              // board dimension (intersections per side)
-  const CELL = 42;             // px between intersections
-  const MARGIN = 28;           // px padding around the grid
-  const STONE_R = 18;          // stone radius in px
+  // Populated by each characters/*.js file below via registerCharacter()
+  // and each puzzles/*.js file via registerPuzzle() — both must run
+  // before those files load.
+  window.CHARACTER_ROSTER = [];
+  window.registerCharacter = function (def) {
+    window.CHARACTER_ROSTER.push(def);
+  };
+  window.PUZZLE_LIST = [];
+  window.registerPuzzle = function (def) {
+    window.PUZZLE_LIST.push(def);
+  };
+  // Exposed globally so puzzles/*.js files (which load before the main
+  // game script below) can reference BLACK/WHITE by name.
+  window.EMPTY = 0; window.BLACK = 1; window.WHITE = 2;
+</script>
+<script src="characters/cyberpunk.js"></script>
+<script src="characters/necromancer.js"></script>
+<script src="characters/gardner.js"></script>
+<script src="characters/spy.js"></script>
+<script src="characters/astrologist.js"></script>
+<script src="characters/deathknight.js"></script>
+<script src="characters/template.js"></script>
+<script src="bot.js"></script>
+<script src="puzzles/puzzle1.js"></script>
 
-  const canvasSize = MARGIN * 2 + CELL * (SIZE - 1);
+<script>
+(function () {
+  // --- intro / splash screen: wired first, before anything below that
+  // could throw (e.g. a missing/misplaced character file), so "click to
+  // begin" always works even if something else on the page is broken.
+  // Deliberately just 'click' (not touchstart+click) — the viewport meta
+  // tag already disables the old mobile tap delay, so click fires
+  // instantly, and adding touchstart on top of it was causing a delayed
+  // "ghost" click to land on whatever button ended up under the same
+  // screen coordinates once the intro screen was removed.
+  document.getElementById('intro-screen').addEventListener('click', () => {
+    document.getElementById('intro-screen').style.display = 'none';
+    openSetup();
+  });
+
+  let SIZE = 9;      // board dimension (intersections per side) — set at setup
+  let MARGIN = 24;   // px padding around the grid
+  let CELL = 44;     // px between intersections — recalculated per board size
+  let STONE_R = 18;  // stone radius in px — recalculated per board size
 
   const canvas = document.getElementById('board');
-  canvas.width = canvasSize;
-  canvas.height = canvasSize;
   const ctx = canvas.getContext('2d');
 
-  const EMPTY = 0, BLACK = 1, WHITE = 2;
+  // Recomputes cell/stone sizing for a given board size — bigger boards
+  // use smaller cells so a 13x13 grid still fits a phone screen — and
+  // resizes the canvas to match. CSS (max-width:100%) scales it down
+  // further if needed; pixelToBoard() already accounts for that scale.
+  function applyBoardSize(size) {
+    SIZE = size;
+    MARGIN = 24;
+    CELL = Math.max(24, Math.floor((400 - 2 * MARGIN) / (SIZE - 1)));
+    STONE_R = Math.max(9, Math.floor(CELL * 0.42));
+    const canvasSize = MARGIN * 2 + CELL * (SIZE - 1);
+    canvas.width = canvasSize;
+    canvas.height = canvasSize;
+  }
+  applyBoardSize(SIZE);
 
-  let board, current, captures, passCount, gameOver;
+  const EMPTY = window.EMPTY, BLACK = window.BLACK, WHITE = window.WHITE;
+
+  // --- card / gacha effect config -------------------------------------
+  // The actual character list now lives in characters/*.js (one file
+  // per character, each just pushing an entry onto window.CHARACTER_ROSTER)
+  // — see characters/template.js for how to add a new one. This is
+  // deliberately just data; the behavior for each effect type is
+  // implemented at its trigger point below (placement, capture,
+  // turn-switching, or the dedicated ability button).
+  const CHARACTER_ROSTER = window.CHARACTER_ROSTER;
+
+  function findCharacter(id) {
+    return CHARACTER_ROSTER.find((c) => c.id === id);
+  }
+
+  // Which character each color currently has equipped. Defaults to the
+  // first two roster entries; the dropdowns let the player change this.
+  const PLAYER_CARDS = {
+    [BLACK]: findCharacter('c1'),
+    [WHITE]: findCharacter('c2')
+  };
+
+  let board, current, captures, passCount, gameOver, pendingExtraTurns;
+  let totalMoves;
+  let vsBotColor = null; // BLACK, WHITE, or null — set by the "Practice vs Bot" mode
+  let pendingRestriction; // { validate(x,y), message } — set by api.restrictNextTo()
+  let armedAbility;       // { color, validate(x,y,api), onSelect(x,y,api), invalidMessage, statusText } — set by api.armTargetSelection()
+  let flags;              // { [BLACK]: {}, [WHITE]: {} } — each character's own scratch storage via api.getFlag/setFlag
+
+  // --- puzzle mode state -------------------------------------------------
+  let puzzleActive = false;
+  let currentPuzzle = null; // the puzzle def currently being played, from PUZZLE_LIST
+  const PUZZLE_LIST = window.PUZZLE_LIST;
+
+  // The four board corners, checked in this fixed order for the
+  // "free corner stone" ability.
+  function cornerPoints() {
+    const last = SIZE - 1;
+    return [[0, 0], [last, 0], [0, last], [last, last]];
+  }
+
+  // Star-point layout scales with board size — 13x13 lands on the real
+  // traditional hoshi spacing; 11x11 (not a standard tournament size)
+  // interpolates the same pattern.
+  function starIndices() {
+    if (SIZE === 19) return [3, 9, 15];
+    if (SIZE === 13) return [3, 6, 9];
+    if (SIZE === 11) return [2, 5, 8];
+    return [2, 4, 6]; // 9x9 default
+  }
+
+  function isStarPoint(x, y) {
+    const starIdx = starIndices();
+    return starIdx.includes(x) && starIdx.includes(y);
+  }
+
+  function hasEmptyStarPoint() {
+    const starIdx = starIndices();
+    for (const sx of starIdx) {
+      for (const sy of starIdx) {
+        if (board[sy][sx] === EMPTY) return true;
+      }
+    }
+    return false;
+  }
+
+  // Builds the `api` object passed to every character hook, scoped to
+  // one character's own color. `moveInfo` supplies the extra per-call
+  // fields (x/y/capturedAny for onAfterPlacement, isStartingPlayer for
+  // onGameStart) — omitted fields are simply undefined.
+  function buildApi(color, moveInfo) {
+    moveInfo = moveInfo || {};
+    return {
+      color: color,
+      opponent: opponent(color),
+      BLACK: BLACK,
+      WHITE: WHITE,
+      size: SIZE,
+      totalMoves: totalMoves,
+      x: moveInfo.x,
+      y: moveInfo.y,
+      capturedAny: moveInfo.capturedAny,
+      isStartingPlayer: moveInfo.isStartingPlayer,
+      isEmpty(x, y) { return board[y][x] === EMPTY; },
+      stoneAt(x, y) { return board[y][x]; },
+      isStarPoint(x, y) { return isStarPoint(x, y); },
+      hasEmptyStarPoint() { return hasEmptyStarPoint(); },
+      corners() { return cornerPoints(); },
+      grantExtraTurn(n) { pendingExtraTurns += (n == null ? 1 : n); },
+      restrictNextTo(validate, message) { pendingRestriction = { validate, message }; },
+      placeBonusStone(x, y) { attemptPlacement(x, y, color); },
+      removeStone(x, y) { board[y][x] = EMPTY; },
+      addCaptureCredit(n) { captures[color] += (n == null ? 1 : n); },
+      setMessage(text) { setMessage(text); },
+      getFlag(name) { return flags[color][name]; },
+      setFlag(name, value) { flags[color][name] = value; },
+      armTargetSelection(config) { armedAbility = Object.assign({ color }, config); },
+      endTurn() { forceEndTurn(); }
+    };
+  }
 
   function newGame() {
     board = Array.from({ length: SIZE }, () => new Array(SIZE).fill(EMPTY));
@@ -114,9 +710,31 @@
     captures = { [BLACK]: 0, [WHITE]: 0 };
     passCount = 0;
     gameOver = false;
+    totalMoves = 0;
+    pendingExtraTurns = 0;
+    pendingRestriction = null;
+    armedAbility = null;
+    flags = { [BLACK]: {}, [WHITE]: {} };
+
+    // onGameStart fires once for both characters, whichever color they are.
+    if (PLAYER_CARDS[BLACK].onGameStart) {
+      PLAYER_CARDS[BLACK].onGameStart(buildApi(BLACK, { isStartingPlayer: true }));
+    }
+    if (PLAYER_CARDS[WHITE].onGameStart) {
+      PLAYER_CARDS[WHITE].onGameStart(buildApi(WHITE, { isStartingPlayer: false }));
+    }
+    // onTurnStart fires for the starting player's own first turn too —
+    // not just on later switches — so an opening-turn ability (like
+    // CyberPunk's) works regardless of which color she's playing.
+    if (PLAYER_CARDS[current].onTurnStart) {
+      PLAYER_CARDS[current].onTurnStart(buildApi(current));
+    }
+
     setMessage('');
+    updateCardImages();
     updateStatus();
     updateScoreboard();
+    updateAbilityButton();
     draw();
   }
 
@@ -124,11 +742,47 @@
     const status = document.getElementById('status');
     if (gameOver) {
       status.textContent = 'Game over — both players passed.';
+    } else if (armedAbility) {
+      status.textContent = (current === BLACK ? 'Black' : 'White') + ': ' + (armedAbility.statusText || 'choose a target');
     } else {
-      status.textContent = (current === BLACK ? 'Black' : 'White') + ' to move';
+      let msg = (current === BLACK ? 'Black' : 'White') + ' to move';
+      if (pendingExtraTurns > 0) {
+        msg += ` (bonus: ${pendingExtraTurns} extra stone${pendingExtraTurns > 1 ? 's' : ''} left)`;
+      }
+      status.textContent = msg;
     }
     document.getElementById('chip-black').classList.toggle('active', current === BLACK && !gameOver);
     document.getElementById('chip-white').classList.toggle('active', current === WHITE && !gameOver);
+  }
+
+  function updateCardImages() {
+    document.querySelector('#chip-black .player-card').src = PLAYER_CARDS[BLACK].img;
+    document.querySelector('#chip-white .player-card').src = PLAYER_CARDS[WHITE].img;
+    document.getElementById('name-black').textContent = PLAYER_CARDS[BLACK].name;
+    document.getElementById('name-white').textContent = PLAYER_CARDS[WHITE].name;
+  }
+
+  // Shows/hides the ability button based on the current player's
+  // character's own `ability.getStatus(api)` — eligibility and the
+  // button's label both come from the character file itself now.
+  function updateAbilityButton() {
+    const btn = document.getElementById('ability-btn');
+    const char = PLAYER_CARDS[current];
+
+    if (gameOver || !char.ability) {
+      btn.style.display = 'none';
+      armedAbility = null;
+      return;
+    }
+
+    const status = char.ability.getStatus(buildApi(current));
+    if (!status.eligible && !armedAbility) {
+      btn.style.display = 'none';
+      return;
+    }
+    btn.style.display = 'inline-block';
+    btn.textContent = armedAbility ? `Cancel ${status.label}` : `Use Ability: ${status.label}`;
+    btn.classList.toggle('active-mode', !!armedAbility);
   }
 
   function updateScoreboard() {
@@ -180,64 +834,248 @@
     return color === BLACK ? WHITE : BLACK;
   }
 
-  // Attempts to place a stone. Returns true if the move was legal and applied.
-  function tryPlace(x, y) {
-    if (gameOver) return false;
+  // Core placement rules only: legality, captures, suicide check. No turn
+  // switching, no ability side-effects — this is shared by the player's
+  // real move and by the "free corner stone" bonus placement.
+  function attemptPlacement(x, y, color) {
     if (board[y][x] !== EMPTY) {
-      setMessage('That point is occupied.');
-      return false;
+      return { ok: false, capturedAny: false };
     }
 
-    // Work on a scratch copy so we can back out of illegal (suicide) moves.
     const scratch = board.map(row => row.slice());
-    scratch[y][x] = current;
+    scratch[y][x] = color;
 
-    // 1. Resolve captures: check each *opposing* neighboring group first.
     let capturedAny = false;
-    const opp = opponent(current);
+    const opp = opponent(color);
     for (const [nx, ny] of neighbors(x, y)) {
       if (scratch[ny][nx] === opp) {
         const { group, liberties } = getGroupAndLiberties(nx, ny, scratch);
         if (liberties.size === 0) {
           for (const [gx, gy] of group) scratch[gy][gx] = EMPTY;
-          captures[current] += group.length;
+          captures[color] += group.length;
           capturedAny = true;
         }
       }
     }
 
-    // 2. Suicide check: only illegal if we captured nothing AND our own
-    //    group has no liberties left.
     const { liberties: ownLiberties } = getGroupAndLiberties(x, y, scratch);
     if (ownLiberties.size === 0 && !capturedAny) {
-      setMessage('Illegal move: that would be suicide.');
-      if (capturedAny) { /* unreachable, kept for clarity */ }
-      // revert the capture bookkeeping we may have started (none happened here)
+      return { ok: false, capturedAny: false };
+    }
+
+    board = scratch;
+    return { ok: true, capturedAny };
+  }
+
+  // --- puzzle mode ---------------------------------------------------
+  // Reuses the same `board`/`captures` globals and attemptPlacement()
+  // the real game uses — a puzzle is really just a tiny scripted game
+  // that only accepts one move. newGame() resets these fully before any
+  // real game starts afterward, so nothing puzzle-related leaks over.
+  function startPuzzle(def) {
+    currentPuzzle = def;
+    puzzleActive = true;
+    applyBoardSize(def.boardSize);
+    board = Array.from({ length: SIZE }, () => new Array(SIZE).fill(EMPTY));
+    for (const s of def.stones) board[s.y][s.x] = s.color;
+    captures = { [BLACK]: 0, [WHITE]: 0 };
+    current = def.toMove;
+
+    // If this puzzle requires a specific character, equip it for the
+    // color that's playing so the puzzle bar can show who you're using.
+    const requiredChar = def.character ? findCharacter(def.character) : null;
+    PLAYER_CARDS[def.toMove] = requiredChar || findCharacter('template');
+    const charInfo = document.getElementById('puzzle-character-info');
+    if (requiredChar) {
+      document.getElementById('puzzle-character-img').src = requiredChar.img;
+      document.getElementById('puzzle-character-name').textContent = requiredChar.name;
+      charInfo.style.display = '';
+    } else {
+      charInfo.style.display = 'none';
+    }
+
+    document.getElementById('puzzle-title-text').textContent = def.title;
+    document.getElementById('puzzle-instructions').textContent =
+      def.instructions || 'Solve the puzzle to win.';
+
+    document.getElementById('scoreboard').style.display = 'none';
+    document.getElementById('controls').style.display = 'none';
+    document.getElementById('status').style.display = 'none';
+    document.getElementById('puzzle-bar').style.display = '';
+    document.getElementById('app-title').textContent = `Go — Puzzle: ${def.title}`;
+    document.getElementById('puzzle-result-overlay').style.display = 'none';
+    setMessage('');
+    draw();
+  }
+
+  function handlePuzzleTap(x, y) {
+    const result = attemptPlacement(x, y, currentPuzzle.toMove);
+    draw();
+    showPuzzleResult(result.ok && result.capturedAny);
+  }
+
+  function showPuzzleResult(success) {
+    puzzleActive = false; // ignore further taps while the result is showing
+    const heading = document.getElementById('puzzle-result-heading');
+    const detail = document.getElementById('puzzle-result-detail');
+    const primaryBtn = document.getElementById('puzzle-result-primary-btn');
+    const reward = currentPuzzle.reward != null ? currentPuzzle.reward : 10;
+
+    if (success) {
+      heading.textContent = 'Success!';
+      detail.textContent = `You captured the stone and earned ${reward} gacha coins.`;
+      primaryBtn.textContent = 'Try Again';
+    } else {
+      heading.textContent = 'Failure';
+      detail.textContent = "That move didn't capture the stone.";
+      primaryBtn.textContent = 'Try Again';
+    }
+    primaryBtn.onclick = () => startPuzzle(currentPuzzle);
+    document.getElementById('puzzle-result-overlay').style.display = 'flex';
+  }
+
+  // Leaves puzzle mode and returns to the main menu, restoring the
+  // normal game screen's elements for whenever a real game starts next.
+  function exitPuzzle() {
+    puzzleActive = false;
+    currentPuzzle = null;
+    document.getElementById('scoreboard').style.display = '';
+    document.getElementById('controls').style.display = '';
+    document.getElementById('status').style.display = '';
+    document.getElementById('puzzle-bar').style.display = 'none';
+    document.getElementById('puzzle-result-overlay').style.display = 'none';
+    openSetup();
+  }
+
+  document.getElementById('puzzle-quit-btn').addEventListener('click', exitPuzzle);
+  document.getElementById('puzzle-result-quit-btn').addEventListener('click', exitPuzzle);
+
+  // Advances to the next turn: if the current player still has pending
+  // bonus stones (from grantExtraTurn), consumes one instead of handing
+  // the turn over. Only fires onTurnStart when a turn genuinely changes
+  // hands — not on a bonus-stone continuation — matching what the hook
+  // is documented to mean in characters/template.js.
+  function resolveTurnSwitch() {
+    if (pendingExtraTurns > 0) {
+      pendingExtraTurns -= 1;
+    } else {
+      current = opponent(current);
+      if (PLAYER_CARDS[current].onTurnStart) {
+        PLAYER_CARDS[current].onTurnStart(buildApi(current));
+      }
+    }
+  }
+
+  // api.endTurn(): forces the turn to pass right now, wiping any
+  // pending bonus stones — used by an ability that ends the turn as
+  // part of its effect (e.g. Spy's free capture).
+  function forceEndTurn() {
+    pendingExtraTurns = 0;
+    current = opponent(current);
+    if (PLAYER_CARDS[current].onTurnStart) {
+      PLAYER_CARDS[current].onTurnStart(buildApi(current));
+    }
+  }
+
+  // --- bot practice mode ----------------------------------------------
+  // Checked after every event that might change whose turn it is. If
+  // it's now the bot's turn, schedules its move after a short delay
+  // (purely so it doesn't feel instantaneous). See bot.js for the
+  // actual move-selection logic — this just wires it into the loop.
+  function maybeTriggerBot() {
+    if (gameOver || !vsBotColor || current !== vsBotColor || armedAbility) return;
+    setTimeout(botTakeTurn, 400);
+  }
+
+  function botTakeTurn() {
+    // Re-check: state may have changed during the setTimeout delay
+    // (e.g. the player reset the game).
+    if (gameOver || current !== vsBotColor) return;
+    const move = window.GoBot.chooseMove({
+      size: SIZE,
+      isEmpty(x, y) { return board[y][x] === EMPTY; }
+    });
+    if (move) {
+      tryPlace(move.x, move.y);
+    } else {
+      handlePass();
+    }
+    maybeTriggerBot(); // in case that move granted the bot a bonus turn
+  }
+
+  // Attempts to place a stone for the current player. Returns true if
+  // the move was legal and applied.
+  function tryPlace(x, y) {
+    if (gameOver || armedAbility) return false;
+
+    if (pendingRestriction && !pendingRestriction.validate(x, y)) {
+      setMessage(pendingRestriction.message);
       return false;
     }
 
-    // Move is legal — commit the scratch board.
-    board = scratch;
+    const { ok, capturedAny } = attemptPlacement(x, y, current);
+    if (!ok) {
+      setMessage(board[y][x] !== EMPTY ? 'That point is occupied.' : 'Illegal move: that would be suicide.');
+      return false;
+    }
+
+    pendingRestriction = null; // whatever bonus this was satisfying, it's used now
     passCount = 0;
+    totalMoves += 1;
     setMessage('');
-    current = opp;
+
+    const char = PLAYER_CARDS[current];
+    if (char.onAfterPlacement) {
+      char.onAfterPlacement(buildApi(current, { x, y, capturedAny }));
+    }
+
+    resolveTurnSwitch();
+
     updateStatus();
     updateScoreboard();
+    updateAbilityButton();
     draw();
+    maybeTriggerBot();
     return true;
   }
 
+  // Handles a tap while an ability is armed (api.armTargetSelection):
+  // validates the target, then runs the character's onSelect and ends
+  // the ability's turn use.
+  function handleArmedTap(x, y) {
+    const cfg = armedAbility;
+    if (!cfg.validate(x, y, buildApi(cfg.color))) {
+      setMessage(cfg.invalidMessage || 'Invalid target.');
+      return;
+    }
+    armedAbility = null;
+    passCount = 0;
+    totalMoves += 1;
+    setMessage('');
+    cfg.onSelect(x, y, buildApi(cfg.color, { x, y }));
+    updateStatus();
+    updateScoreboard();
+    updateAbilityButton();
+    draw();
+    maybeTriggerBot();
+  }
+
   function handlePass() {
-    if (gameOver) return;
+    if (gameOver || armedAbility) return;
     passCount += 1;
+    totalMoves += 1;
+    pendingRestriction = null; // passing forfeits any pending restriction/bonus
     setMessage('');
     if (passCount >= 2) {
       gameOver = true;
       updateStatus();
+      updateAbilityButton();
       return;
     }
-    current = opponent(current);
+    resolveTurnSwitch();
     updateStatus();
+    updateAbilityButton();
+    maybeTriggerBot();
   }
 
   // --- rendering ---
@@ -260,8 +1098,8 @@
       ctx.stroke();
     }
 
-    // star points for a 9x9 board
-    const starIdx = [2, 4, 6];
+    // star points, scaled to the current board size
+    const starIdx = starIndices();
     ctx.fillStyle = '#3a2a15';
     for (const sx of starIdx) {
       for (const sy of starIdx) {
@@ -299,21 +1137,211 @@
   }
 
   canvas.addEventListener('click', (e) => {
+    if (!puzzleActive && vsBotColor && current === vsBotColor) return;
     const { x, y } = pixelToBoard(e.clientX, e.clientY);
-    if (inBounds(x, y)) tryPlace(x, y);
+    if (!inBounds(x, y)) return;
+    if (puzzleActive) handlePuzzleTap(x, y);
+    else if (armedAbility) handleArmedTap(x, y);
+    else tryPlace(x, y);
   });
 
   canvas.addEventListener('touchstart', (e) => {
     e.preventDefault();
+    if (!puzzleActive && vsBotColor && current === vsBotColor) return;
     const t = e.touches[0];
     const { x, y } = pixelToBoard(t.clientX, t.clientY);
-    if (inBounds(x, y)) tryPlace(x, y);
+    if (!inBounds(x, y)) return;
+    if (puzzleActive) handlePuzzleTap(x, y);
+    else if (armedAbility) handleArmedTap(x, y);
+    else tryPlace(x, y);
   }, { passive: false });
 
-  document.getElementById('pass-btn').addEventListener('click', handlePass);
-  document.getElementById('reset-btn').addEventListener('click', newGame);
+  document.getElementById('pass-btn').addEventListener('click', () => {
+    if (vsBotColor && current === vsBotColor) return;
+    handlePass();
+  });
 
-  newGame();
+  document.getElementById('ability-btn').addEventListener('click', () => {
+    if (vsBotColor && current === vsBotColor) return;
+    if (armedAbility) {
+      armedAbility = null;
+    } else {
+      const char = PLAYER_CARDS[current];
+      if (char.ability) char.ability.onActivate(buildApi(current));
+    }
+    setMessage('');
+    updateStatus();
+    updateAbilityButton();
+  });
+
+  // --- setup / character-select flow ------------------------------------
+  let setupSize = SIZE;
+  let setupBlackId = PLAYER_CARDS[BLACK].id;
+  let setupWhiteId = PLAYER_CARDS[WHITE].id;
+  let pickColor = null; // which color is currently choosing, on the pick step
+  let settingUpVsBot = false; // true if "Practice vs Bot" was chosen on the mode screen
+
+  const overlay = document.getElementById('setup-overlay');
+  const stepMode = document.getElementById('step-mode');
+  const stepPuzzleSelect = document.getElementById('step-puzzle-select');
+  const stepSize = document.getElementById('step-size');
+  const stepPick = document.getElementById('step-pick');
+  const stepVs = document.getElementById('step-vs');
+
+  function showStep(step) {
+    stepMode.style.display = step === 'mode' ? '' : 'none';
+    stepPuzzleSelect.style.display = step === 'puzzle-select' ? '' : 'none';
+    stepSize.style.display = step === 'size' ? '' : 'none';
+    stepPick.style.display = step === 'pick' ? '' : 'none';
+    stepVs.style.display = step === 'vs' ? '' : 'none';
+  }
+
+  function openSetup() {
+    overlay.style.display = 'flex';
+    showStep('mode');
+  }
+
+  function closeSetup() {
+    overlay.style.display = 'none';
+  }
+
+  function showPreview(char) {
+    document.getElementById('preview-placeholder').style.display = 'none';
+    const img = document.getElementById('preview-img');
+    img.src = char.img;
+    img.alt = char.name;
+    img.style.display = 'block';
+    const nameEl = document.getElementById('preview-name');
+    nameEl.textContent = char.name;
+    nameEl.style.display = 'block';
+    document.getElementById('preview-desc').textContent = char.desc;
+  }
+
+  function resetPreview() {
+    document.getElementById('preview-placeholder').style.display = '';
+    document.getElementById('preview-img').style.display = 'none';
+    document.getElementById('preview-name').style.display = 'none';
+    document.getElementById('preview-name').textContent = '';
+    document.getElementById('preview-desc').textContent = '';
+  }
+
+  function renderPickGrid(color) {
+    pickColor = color;
+    resetPreview();
+    document.getElementById('pick-title').textContent =
+      (color === BLACK ? 'Black' : 'White') + ': Choose Your Fighter';
+    const grid = document.getElementById('pick-grid');
+    grid.innerHTML = '';
+    for (const char of CHARACTER_ROSTER) {
+      const item = document.createElement('div');
+      item.className = 'pick-item';
+      item.innerHTML = `<img src="${char.img}" alt="${char.name}"><span>${char.name}</span>`;
+      item.addEventListener('mouseenter', () => showPreview(char));
+      item.addEventListener('click', () => {
+        if (color === BLACK) {
+          setupBlackId = char.id;
+          renderPickGrid(WHITE);
+        } else {
+          setupWhiteId = char.id;
+          showVsStep();
+        }
+      });
+      grid.appendChild(item);
+    }
+  }
+
+  function showVsStep() {
+    showStep('vs');
+    const b = findCharacter(setupBlackId);
+    const w = findCharacter(setupWhiteId);
+    document.getElementById('vs-black-img').src = b.img;
+    document.getElementById('vs-black-name').textContent = b.name;
+    document.getElementById('vs-white-img').src = w.img;
+    document.getElementById('vs-white-name').textContent = w.name;
+  }
+
+  function renderPuzzleList() {
+    const list = document.getElementById('puzzle-list');
+    list.innerHTML = '';
+    if (PUZZLE_LIST.length === 0) {
+      list.innerHTML = '<p style="color:#999;font-style:italic;">No puzzles yet.</p>';
+      return;
+    }
+    for (const def of PUZZLE_LIST) {
+      const item = document.createElement('div');
+      item.className = 'puzzle-item';
+      const requiredChar = def.character ? findCharacter(def.character) : null;
+      item.innerHTML = requiredChar
+        ? `<img src="${requiredChar.img}" alt="${requiredChar.name}">
+           <div><div class="puzzle-item-title">${def.title}</div>
+           <div class="puzzle-item-sub">Requires: ${requiredChar.name}</div></div>`
+        : `<div><div class="puzzle-item-title">${def.title}</div>
+           <div class="puzzle-item-sub">${def.boardSize}×${def.boardSize} board</div></div>`;
+      item.addEventListener('click', () => {
+        closeSetup();
+        startPuzzle(def);
+      });
+      list.appendChild(item);
+    }
+  }
+
+  document.querySelectorAll('#step-mode .size-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.mode === 'local') {
+        settingUpVsBot = false;
+        showStep('size');
+      } else if (btn.dataset.mode === 'bot') {
+        settingUpVsBot = true;
+        showStep('size');
+      } else {
+        showStep('puzzle-select');
+        renderPuzzleList();
+      }
+    });
+  });
+
+  document.getElementById('puzzle-select-back-btn').addEventListener('click', () => {
+    showStep('mode');
+  });
+
+  document.querySelectorAll('#step-size .size-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      setupSize = parseInt(btn.dataset.size, 10);
+      showStep('pick');
+      renderPickGrid(BLACK);
+    });
+  });
+
+  document.getElementById('size-back-btn').addEventListener('click', () => {
+    showStep('mode');
+  });
+
+  document.getElementById('pick-back-btn').addEventListener('click', () => {
+    if (pickColor === WHITE) {
+      renderPickGrid(BLACK);
+    } else {
+      showStep('size');
+    }
+  });
+
+  document.getElementById('vs-back-btn').addEventListener('click', () => {
+    showStep('pick');
+    renderPickGrid(WHITE);
+  });
+
+  document.getElementById('vs-start-btn').addEventListener('click', () => {
+    PLAYER_CARDS[BLACK] = findCharacter(setupBlackId);
+    PLAYER_CARDS[WHITE] = findCharacter(setupWhiteId);
+    applyBoardSize(setupSize);
+    vsBotColor = settingUpVsBot ? WHITE : null;
+    document.getElementById('app-title').textContent = settingUpVsBot
+      ? `Go — Practice vs Bot (${setupSize}×${setupSize})`
+      : `Go — Local 2 Player (${setupSize}×${setupSize})`;
+    closeSetup();
+    newGame();
+  });
+
+  document.getElementById('reset-btn').addEventListener('click', openSetup);
 })();
 
 // Registering the service worker is what makes the browser treat this
